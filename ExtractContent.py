@@ -21,16 +21,15 @@ def ExtractSubPayload (filename):
 	if not os.path.exists(filename): # dest path doesnot exist
 		print("ERROR: input file does not exist:", filename)
 		exit()
-	fp = open(filename)
-	#{print(filename)
-	msg = email.message_from_file(fp)
-	payload = msg.get_payload()
-	if type(payload) == type(list()) :
-		payload = payload[0] # only use the first part of payload
-	sub = msg.get('subject')
-	sub = str(sub)
-	if type(payload) != type('') :
-		payload = str(payload)
+	with open(filename, errors='ignore') as fp:
+		msg = email.message_from_file(fp)
+		payload = msg.get_payload()
+		if type(payload) == type(list()) :
+			payload = payload[0] # only use the first part of payload
+		sub = msg.get('subject')
+		sub = str(sub)
+		if type(payload) != type('') :
+			payload = str(payload)
 	
 	return sub + payload
 
