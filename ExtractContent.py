@@ -12,6 +12,7 @@ from sklearn import datasets
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn import metrics
+from sys import exit
 
 def ExtractSubPayload (filename):
 	''' Extract the subject and payload from the .eml file.
@@ -62,6 +63,10 @@ def ExtractBodyFromDirTrain ( srcdir, dstdir, emailTargets ):
 			ExtractBodyFromDirTrain(srcpath, dstpath, emailTargets)
 		else:  # copy the file
 			body = ExtractSubPayload (srcpath)
+			
+			dirpath,_ = os.path.split(dstpath)
+			if not os.path.exists(dirpath):
+				os.makedirs(dirpath)
 			dstfile = open(dstpath, 'w')
 			dstfile.write(body)
 			dstfile.close()
@@ -122,24 +127,24 @@ if __name__ == "__main__":
 	'''
 
 	###################################################################
-	emailTargets = GetTrainingClassification(r"adcg-ss14-challenge-02-spam-mails-detection\spam-mail.tr.label")
+	emailTargets = GetTrainingClassification(r"spam-mail.tr.label")
 
 	###################################################################
-	ExtractBodyFromDirTrain ( r"adcg-ss14-challenge-02-spam-mails-detection\TR", r"adcg-ss14-challenge-02-spam-mails-detection\TRemailSet", emailTargets ) 
+	ExtractBodyFromDirTrain ( r"TR", r"TRemailSet", emailTargets ) 
 
 	###################################################################
-	ExtractBodyFromDirTest ( r"adcg-ss14-challenge-02-spam-mails-detection\TT", r"adcg-ss14-challenge-02-spam-mails-detection\TTemailSet\test" ) 
+	ExtractBodyFromDirTest ( r"TT", r"TTemailSet\test" ) 
 
 	###################################################################
 	# Now we have the exctracted content, let's train our model
-	trainEmails = datasets.load_files(r"adcg-ss14-challenge-02-spam-mails-detection\TRemailSet")
+	trainEmails = datasets.load_files(r"TRemailSet")
 	#print(list(trainEmails.target_names))
 
 	
-	testEmails = datasets.load_files(r"adcg-ss14-challenge-02-spam-mails-detection\TTemailSet")
+	testEmails = datasets.load_files(r"TTemailSet")
 	#print(testEmails.filenames.shape)
 
-	vectorizer = TfidfVectorizer()
+	vectorizer = TfidfVectorizer(decode_error='replace')
 
 	#IL BUG ICI LE CONNARD TODO
 	vectors = vectorizer.fit_transform(trainEmails.data)
