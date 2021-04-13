@@ -5,6 +5,7 @@ __pycache__/
 
 TTemailSet/
 TRemailSet/
+spam-mail.tt.label
 
 # C extensions
 *.so

@@ -13,6 +13,7 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn import metrics
 from sys import exit
+import print_tt
 
 def ExtractSubPayload (filename):
 	''' Extract the subject and payload from the .eml file.
@@ -136,21 +137,15 @@ if __name__ == "__main__":
 
 	###################################################################
 	# Now we have the exctracted content, let's train our model
-	trainEmails = datasets.load_files(r"TRemailSet")
-	#print(list(trainEmails.target_names))
-
+	trainEmails = datasets.load_files(r"TRemailSet")	
+	testEmails = datasets.load_files(r"TTemailSet", shuffle=False) #shuffle must be set to false otherwise ID not match output
 	
-	testEmails = datasets.load_files(r"TTemailSet")
-	#print(testEmails.filenames.shape)
-
-	vectorizer = TfidfVectorizer(decode_error='replace')
-
-	#IL BUG ICI LE CONNARD TODO
+	vectorizer = TfidfVectorizer(decode_error='replace') #use U+FFFD, REPLACEMENT CHARACTER
 	vectors = vectorizer.fit_transform(trainEmails.data)
-	print(vectors.nnz / float(vectors.shape[0]))
-
-	vectors_test = vectorizer.transform(testEmails.data)
+	vectors_test = vectorizer.transform(testEmails.data)	
+	
 	clf = MultinomialNB(alpha=.01)
 	clf.fit(vectors, trainEmails.target)
 	pred = clf.predict(vectors_test)
 	print(metrics.f1_score(testEmails.target, pred, average='macro'))
+	print_tt.print_output(pred)
