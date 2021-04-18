@@ -63,6 +63,8 @@ def ExtractSubPayload (filename):
 			payload = payload[0] # only use the first part of payload
 		sub = msg.get('subject')
 		sub = str(sub).replace(";", "")
+		sub = str(sub).replace("\"", "")
+		sub = str(sub).replace("'", "")
 		if type(payload) != type('') :
 			payload = str(payload).replace(";", "")
 	
@@ -108,6 +110,7 @@ def BuldingDataSet ( srcdir, dstdir, data, emailTargets ):
 	if not os.path.exists(dstdir): # dest path doesnot exist
 		os.makedirs(dstdir)
 	files = os.listdir(srcdir)
+
 	for file in files:
 		NumEmail = 0
 		if str(file).find("eml") != -1 & str(file).find(keyWord) != -1 :
@@ -125,25 +128,24 @@ def BuldingDataSet ( srcdir, dstdir, data, emailTargets ):
 			sentense = ''
 			for row in fileobj:
 				if (row):
-					try:
-						# sentense = sentense.encode('latin').strip() + row.encode('latin').strip()
-						sentense = sentense + row
-					except ValueError:
-						print(str(file) +" That was no valid number "+ str(i))
+					# try:
+					# 	# sentense = sentense.encode('latin').strip() + row.encode('latin').strip()
+					sentense = sentense + row
+					# except ValueError:
+					# 	print(str(file) +" That was no valid number "+ str(i))
 
 			position = sentense.find(';')
 			subject = sentense[0:position+1]
 			body = sentense[position-1 : sentense.find('\n')].replace(";", "")
 
-			if str(data).find("TrainningSet") != -1:
-				with open(data, 'a') as fichier:
-					fichier.write("\n"+ str(subject)  + str(body) + ";" + str(emailTargets[NumEmail]))
-			else:
-				with open( data, 'a') as fichier:
-					fichier.write("\n"+ str(subject)  + str(body) )
+			if NumEmail !=0 :
 
-		i +=1
-
+				if str(data).find("TrainningSet") != -1:
+					with open(data, 'a') as fichier:
+						fichier.write(str(NumEmail) + ";"+ str(subject)  + str(body) + ";" + str(emailTargets[NumEmail])+"\n" )
+				else:
+					with open( data, 'a') as fichier:
+						fichier.write(str(NumEmail)+ ";" + str(subject)  + str(body)+"\n" )
 
 
 def GetTrainingClassification (filename):
@@ -193,7 +195,7 @@ def save_results(names, resultat, filename='results_evaluator.txt'):
 			fichier.write("\n| %20s" % (name))
 
 			for value in resultat[name]:
-				fichier.write("| {:.2f} %   ".format(100 * value))
+				fichier.write("| {%11:.2f} %   ".format(100 * value))
 
 			fichier.write("|\n"  + "+" + "-" * sli + "+ ")
 			fichier.write("       %3s" % (' '))
