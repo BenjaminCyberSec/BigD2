@@ -1,4 +1,6 @@
 #Import libraries
+from sklearn.neural_network import MLPClassifier
+
 from ExtractContent import *
 import os
 import nltk
@@ -31,12 +33,12 @@ if __name__ == "__main__":
                    "DataSet" + os.path.sep + "TestingSet.csv", emailTargets)
 
     # Chargement des dataset ".csv"
-    TrainDataSet = pd.read_csv("DataSet"+os.path.sep+"TrainningSet.csv", sep=';', names=('Subject', 'Content', 'SPAM'))
-    TestDataSet = pd.read_csv("DataSet"+os.path.sep+"TestingSet.csv", sep=';', names=('Subject', 'Content'))
+    TrainDataSet = pd.read_csv("DataSet" + os.path.sep + "TrainningSet.csv", sep=';',names=('position', 'Subject', 'Content', 'SPAM'))
+    TestDataSet = pd.read_csv("DataSet" + os.path.sep + "TestingSet.csv", sep=';',names=('position', 'Subject', 'Content'))
 
     # Vérifie et supprime les doublons
-    TrainDataSet.drop_duplicates(inplace=True)
-    TestDataSet.drop_duplicates(inplace=True)
+    #TrainDataSet.drop_duplicates(inplace=True)
+    #TestDataSet.drop_duplicates(inplace=True)
 
     print("TrainDataSet =", TrainDataSet.shape)
     print("TestDataSet  =", TestDataSet.shape)
@@ -55,45 +57,76 @@ if __name__ == "__main__":
     process_msg(TestDataSet)
     process_msg(TrainDataSet)
 
-    # separe le 'target' et les 'features'
+    # separe le 'target' et les 'features' du DataSet de Trainning
     y = pd.DataFrame(TrainDataSet.SPAM)
     x = TrainDataSet.drop(['SPAM'], axis=1)
 
-    # ceration des variable d'entrainement et de test
+    # ceration des variable d'entrainement et de validation
     x_train, x_val, y_train, y_val = train_test_split(x, y, train_size=0.8, test_size=0.2, random_state=0)
+
+    # ceration des variable de Testing
+    x_test = TestDataSet
+
+    print("Moyenne Nomre de mots du DataSet d'entrainement :", int(TrainDataSet['wordNum'].mean()))
+    print("Moyenne Nomre de mots du DataSet d'entrainement :", int(TestDataSet['wordNum'].mean()))
+    max_feature = max(int(TrainDataSet['wordNum'].mean()), int(TestDataSet['wordNum'].mean()))
 
     # Vectorisation de comptage
     # Il s'agit de compter le nombre d'occurrences de chaque mot dans le texte donné.
-    max_feature = max(int(TrainDataSet['wordNum'].mean()), int(TestDataSet['wordNum'].mean()))
 
-    vectorize = CountVectorizer(max_features=max_feature)
-    temp_train = vectorize.fit_transform(x_train['Text_clain']).toarray()
-    temp_val = vectorize.transform(x_val['Text_clain']).toarray()
+    # pour le les donne d'entrainement
+    vectorize_Train = CountVectorizer(max_features=max_feature)
+    temp_train = vectorize_Train.fit_transform(x_train['Text_clain']).toarray()
+    temp_val = vectorize_Train.transform(x_val['Text_clain']).toarray()
+
+    # pour le les donne de Teste
+    vectorize_Test = CountVectorizer(max_features=max_feature)
+    temp_test = vectorize_Test.fit_transform(x_test['Text_clain']).toarray()
 
     # tfidf : utiliser pour determiner à quel point un mot est important pour un texte dans un groupe de texte.
     # il est calculé en multipliant la fréquence d'un mot et la fréquence inverse du document
     # (la fréquence d'un mot, calculée par log (nombre de texte / nombre de texte contenant le mot)) du mot dans un groupe de texte.
-    tf = TfidfTransformer()
-    temp_train = tf.fit_transform(temp_train)
-    temp_val = tf.transform(temp_val)
 
-    # merging temp datafram with original dataframe
+    # pour le les donne d'entrainement
+    tf_train = TfidfTransformer()
+
+    temp_train = tf_train.fit_transform(temp_train)
+    temp_val = tf_train.transform(temp_val)
+
+    # pour le les donne de Test
+    tf_test = TfidfTransformer()
+    temp_test = tf_test.fit_transform(temp_test)
+
+    # merging temp datafram avec le dataframe original
+
+    # pour les donne d'entrainement
     temp_train = pd.DataFrame(temp_train.toarray(), index=x_train.index)
     temp_val = pd.DataFrame(temp_val.toarray(), index=x_val.index)
     x_train = pd.concat([x_train, temp_train], axis=1, sort=False)
     x_val = pd.concat([x_val, temp_val], axis=1, sort=False)
 
+    # pour le les donne de Test
+    temp_test = pd.DataFrame(temp_test.toarray(), index=x_test.index)
+    x_test = pd.concat([x_test, temp_test], axis=1, sort=False)
+
     # supression de toutes les colonne des texte.
 
+    x_train.drop(['position'], axis=1, inplace=True)
     x_train.drop(['Subject'], axis=1, inplace=True)
     x_train.drop(['Content'], axis=1, inplace=True)
     x_train.drop(['Text_clain'], axis=1, inplace=True)
 
+    x_val.drop(['position'], axis=1, inplace=True)
     x_val.drop(['Subject'], axis=1, inplace=True)
     x_val.drop(['Content'], axis=1, inplace=True)
     x_val.drop(['Text_clain'], axis=1, inplace=True)
 
-    names = ["K_Nearest_Neighbors", "Decision_Tree", "Random_Forest", "Logistic_Regression", "SGD_Classifier", "Naive_Bayes", "SVM_Linear"]
+    x_test.drop(['position'], axis=1, inplace=True)
+    x_test.drop(['Subject'], axis=1, inplace=True)
+    x_test.drop(['Content'], axis=1, inplace=True)
+    x_test.drop(['Text_clain'], axis=1, inplace=True)
+
+    names = ["K_Nearest_Neighbors", "Decision_Tree", "Random_Forest", "Logistic_Regression", "SGD_Classifier", "Naive_Bayes", "SVM_Linear","MLPClassifier"]
     Y_preds = {}
 
     classifiers = [
@@ -103,7 +136,8 @@ if __name__ == "__main__":
         LogisticRegression(),
         SGDClassifier(max_iter=100),
         MultinomialNB(),
-        SVC(kernel='linear')
+        SVC(kernel='linear'),
+        MLPClassifier()
     ]
 
     models = zip(names, classifiers)
@@ -113,7 +147,7 @@ if __name__ == "__main__":
         model.fit(x_train, y_train)
         y_preds = model.predict(x_val)
         Y_preds[name] = y_preds
-        score[name] = [accuracy_score(y_val, y_preds), 1, 4]
+        score[name] = [accuracy_score(y_val, y_preds), 0, 0]
     #     print("Precision: {:.2f}%".format(100 * precision_score(y_val, y_preds)))
     #     print("Recall: {:.2f}%".format(100 * recall_score(y_val, y_preds)))
     #     print("Confusion Matrix:\n")
@@ -122,3 +156,7 @@ if __name__ == "__main__":
 
     save_results(names, score)
     printfile()
+
+    # modelHigtperformence = DecisionTreeClassifier(random_state=0)
+    # modelHigtperformence.fit(x_train, y_train)
+    # y_test = modelHigtperformence.predict(x_test)
