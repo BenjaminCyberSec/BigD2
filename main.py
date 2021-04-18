@@ -22,6 +22,7 @@ if __name__ == "__main__":
     #Sauvegarde des target
     emailTargets = GetTrainingClassification("DataSet" + os.path.sep + "spam-mail.tr.label")
 
+    print("\nCreation DataSet:")
     # genere le dataset de Trainning Testing
     ExtractBodyFromDir("DataSet" + os.path.sep + "TR", "DataSet" + os.path.sep + "TRemailSet")
     BuldingDataSet("DataSet" + os.path.sep + "TRemailSet", "DataSet" + os.path.sep + "TRemailSet",
@@ -43,17 +44,13 @@ if __name__ == "__main__":
     print("TrainDataSet =", TrainDataSet.shape)
     print("TestDataSet  =", TestDataSet.shape)
 
-    print("\n Afficher le nombre de données manquantes (NAN, NaN, na) pour chaque colonne du TrainDataSet")
-    print( TrainDataSet.isnull().sum() )
-    print("\n Afficher le nombre de données manquantes (NAN, NaN, na) pour chaque colonne du TestDataSet")
-    print(TestDataSet.isnull().sum() )
-
     # Afficher le graphe du nombre de mail Spam et Non Spam
     # sns.countplot(TrainDataSet.SPAM)
 
     # Statistique des SPAM et Non SPAM
     # print( TrainDataSet.groupby('SPAM').describe() )
 
+    print("\nTraitement DataSet:")
     process_msg(TestDataSet)
     process_msg(TrainDataSet)
 
@@ -142,8 +139,15 @@ if __name__ == "__main__":
 
     models = zip(names, classifiers)
     score = {}
+    j=0
 
+    print("\nTrainning All Algoritheme:")
+    numm = progressbarTime("Trainning All Algoritheme")
     for name, model in models:
+        if (j % (len(classifiers) / numm)) == 0:
+            sys.stdout.write("-"*len(classifiers))
+            sys.stdout.flush()
+
         model.fit(x_train, y_train)
         y_preds = model.predict(x_val)
         Y_preds[name] = y_preds
@@ -153,6 +157,8 @@ if __name__ == "__main__":
     #     print("Confusion Matrix:\n")
     #     confusion_m = confusion_matrix(y_val, y_preds)
     #     print(confusion_m)
+
+    sys.stdout.write("]\n")
 
     save_results(names, score)
     printfile()

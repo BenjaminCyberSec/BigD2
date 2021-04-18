@@ -8,6 +8,8 @@ import csv
 import email.parser
 import os, sys, stat
 import re
+import time
+import sys
 
 #Import libraries
 import numpy as np
@@ -93,6 +95,7 @@ def ExtractBodyFromDir ( srcdir, dstdir ):
 def BuldingDataSet ( srcdir, dstdir, data, emailTargets ):
 
 	i=0
+	j = 0
 	keyWord = ''
 
 	if not os.path.exists(dstdir): # dest path doesnot exist
@@ -111,7 +114,13 @@ def BuldingDataSet ( srcdir, dstdir, data, emailTargets ):
 		os.makedirs(dstdir)
 	files = os.listdir(srcdir)
 
+	numm=progressbarTime("Creation DataSet")
 	for file in files:
+		if ( j % (int(len(files)/numm)) )==0 :
+			time.sleep(0.1)
+			sys.stdout.write("-")
+			sys.stdout.flush()
+
 		NumEmail = 0
 		if str(file).find("eml") != -1 & str(file).find(keyWord) != -1 :
 			NumEmail1= str(file).replace(keyWord, "").replace(".eml", "")
@@ -146,6 +155,9 @@ def BuldingDataSet ( srcdir, dstdir, data, emailTargets ):
 				else:
 					with open( data, 'a') as fichier:
 						fichier.write(str(NumEmail)+ ";" + str(subject)  + str(body)+"\n" )
+		j+=1
+
+	sys.stdout.write("]\n")
 
 
 def GetTrainingClassification (filename):
@@ -168,6 +180,11 @@ def GetTrainingClassification (filename):
 # converti en munuscules,.
 
 def process_msg (DataSet) :
+
+	numm=progressbarTime("Traitement DataSet")
+	sys.stdout.write("-")
+	sys.stdout.flush()
+
 	sm = SnowballStemmer("english")
 	DataSet['Text_clain'] =''
 	DataSet["wordNum"] = ''
@@ -180,6 +197,8 @@ def process_msg (DataSet) :
 	DataSet['Text_clain']= DataSet['Text_clain'].apply(lambda text_list:' '.join(list(map(lambda word:sm.stem(word),(list(filter(lambda text:text not in set(stopwords.words('english')),text_list)))))))
 	# compte le nombre de Caractere  du message
 	DataSet["messageLength"] = DataSet["Text_clain"].apply(len)
+
+	sys.stdout.write("]\n")
 
 
 def save_results(names, resultat, filename='results_evaluator.txt'):
@@ -195,7 +214,7 @@ def save_results(names, resultat, filename='results_evaluator.txt'):
 			fichier.write("\n| %20s" % (name))
 
 			for value in resultat[name]:
-				fichier.write("| {%11:.2f} %   ".format(100 * value))
+				fichier.write("| {:.2f} %   ".format(100 * value))
 
 			fichier.write("|\n"  + "+" + "-" * sli + "+ ")
 			fichier.write("       %3s" % (' '))
@@ -203,3 +222,11 @@ def save_results(names, resultat, filename='results_evaluator.txt'):
 def printfile(filename='results_evaluator.txt'):
 	with open("DataSet" + os.path.sep + filename, "r") as filin:
 		print(filin.read())
+
+def progressbarTime(message, toolbar_width=50) :
+	toolbar_width
+	sys.stdout.write("%20s [%s]" % (message," " * 1))
+	sys.stdout.flush()
+	sys.stdout.write("\b" * (toolbar_width + 1))  # retoure a la ligne apres le '['
+	return toolbar_width
+
