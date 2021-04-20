@@ -1,168 +1,119 @@
 #Import libraries
-from sklearn.neural_network import MLPClassifier
-
-from ExtractContent import *
 import os
+import json
 import nltk
 nltk.download('stopwords')
 import pandas as pd
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.tree import DecisionTreeClassifier
+from ExtractContent import GetTrainingClassification, ExtractBodyFromDir, BuildDataSet, Sanitize_Data, remove_extra_fields
+from print_tt import print_output
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.linear_model import LogisticRegression, SGDClassifier
-from sklearn.svm import SVC
-from sklearn.metrics import precision_score, recall_score
-from sklearn.metrics import confusion_matrix
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 
+def generate_feature_sets():
+    data_dir_path = "DataSet" + os.path.sep 
+    tr_email_path = data_dir_path + "spam-mail.tr.label"
+    tr_extract_dir_path = data_dir_path + "TR"
+    tt_extract_dir_path = data_dir_path + "TT"
+    tr_content_dir_path = data_dir_path + "TRemailSet"
+    tt_content_dir_path = data_dir_path + "TTemailSet"
+    tr_csv_path = data_dir_path + "TrainningSet.csv"
+    tt_csv_path = "DataSet" + os.path.sep + "TestingSet.csv"
 
-if __name__ == "__main__":
+    #Loads the targets
+    emailTargets = GetTrainingClassification(tr_email_path)
+    
+    print("\Loading testing and training emails:")
+    # generate training dataset
+    ExtractBodyFromDir(tr_extract_dir_path, tr_content_dir_path)
+    BuildDataSet(tr_content_dir_path, tr_content_dir_path,tr_csv_path, emailTargets)
 
-    #Sauvegarde des target
-    emailTargets = GetTrainingClassification("DataSet" + os.path.sep + "spam-mail.tr.label")
-
-    print("\nCreation DataSet:")
-    # genere le dataset de Trainning Testing
-    ExtractBodyFromDir("DataSet" + os.path.sep + "TR", "DataSet" + os.path.sep + "TRemailSet")
-    BuldingDataSet("DataSet" + os.path.sep + "TRemailSet", "DataSet" + os.path.sep + "TRemailSet",
-                   "DataSet" + os.path.sep + "TrainningSet.csv", emailTargets)
-
-    # genere le dataset de Testing
-    ExtractBodyFromDir("DataSet" + os.path.sep + "TT", "DataSet" + os.path.sep + "TTemailSet")
-    BuldingDataSet("DataSet" + os.path.sep + "TTemailSet", "DataSet" + os.path.sep + "TTemailSet",
-                   "DataSet" + os.path.sep + "TestingSet.csv", emailTargets)
+    # generate testing dataset
+    ExtractBodyFromDir(tt_extract_dir_path, tt_content_dir_path)
+    BuildDataSet(tt_content_dir_path, tt_content_dir_path,tt_csv_path, emailTargets)
 
     # Chargement des dataset ".csv"
-    TrainDataSet = pd.read_csv("DataSet" + os.path.sep + "TrainningSet.csv", sep=';',names=('position', 'Subject', 'Content', 'SPAM'))
-    TestDataSet = pd.read_csv("DataSet" + os.path.sep + "TestingSet.csv", sep=';',names=('position', 'Subject', 'Content'))
+    #sorting is important to keep the id matching the reality
+    TrainDataSet = pd.read_csv(tr_csv_path, sep=';',names=('position', 'Subject', 'Content', 'SPAM')).sort_values('position')
+    TestDataSet = pd.read_csv(tt_csv_path, sep=';',names=('position', 'Subject', 'Content')).sort_values('position')
 
-    # Vérifie et supprime les doublons
+    # Vérifie et supprime les doublons ----------------------- ON GARDE ?
     #TrainDataSet.drop_duplicates(inplace=True)
-    #TestDataSet.drop_duplicates(inplace=True)
-
-    print("TrainDataSet =", TrainDataSet.shape)
-    print("TestDataSet  =", TestDataSet.shape)
-
-    # Afficher le graphe du nombre de mail Spam et Non Spam
-    # sns.countplot(TrainDataSet.SPAM)
-
-    # Statistique des SPAM et Non SPAM
-    # print( TrainDataSet.groupby('SPAM').describe() )
 
     print("\nTraitement DataSet:")
-    process_msg(TestDataSet)
-    process_msg(TrainDataSet)
+    Sanitize_Data(TestDataSet) #sanitize and collect the word number and the char number
+    Sanitize_Data(TrainDataSet)
+    
+    return TestDataSet, TrainDataSet
+
+if __name__ == "__main__":
+    test_data_set_f = 'test_data_set.json'
+    train_data_set_f = 'train_data_set.json'
+    
+    if os.path.isfile(test_data_set_f) and os.path.isfile(train_data_set_f):
+        with open(train_data_set_f, 'r') as train_file, open(test_data_set_f, 'r') as test_file:
+            TrainDataSet = pd.read_json(train_file)
+            TestDataSet = pd.read_json(test_file)
+    else:
+        TestDataSet, TrainDataSet = generate_feature_sets()
+        with open(train_data_set_f, 'w') as train_file, open(test_data_set_f, 'w') as test_file:
+            TestDataSet.to_json(test_data_set_f)
+            TrainDataSet.to_json(train_data_set_f)
 
     # separe le 'target' et les 'features' du DataSet de Trainning
-    y = pd.DataFrame(TrainDataSet.SPAM)
+    y = pd.DataFrame(TrainDataSet.SPAM) 
     x = TrainDataSet.drop(['SPAM'], axis=1)
-
-    # ceration des variable d'entrainement et de validation
-    x_train, x_val, y_train, y_val = train_test_split(x, y, train_size=0.8, test_size=0.2, random_state=0)
-
-    # ceration des variable de Testing
-    x_test = TestDataSet
-
+    
     print("Moyenne Nomre de mots du DataSet d'entrainement :", int(TrainDataSet['wordNum'].mean()))
     print("Moyenne Nomre de mots du DataSet d'entrainement :", int(TestDataSet['wordNum'].mean()))
     max_feature = max(int(TrainDataSet['wordNum'].mean()), int(TestDataSet['wordNum'].mean()))
+    
+    traintarget = y
+    trainset = x
+    testset = TestDataSet
+
 
     # Vectorisation de comptage
     # Il s'agit de compter le nombre d'occurrences de chaque mot dans le texte donné.
-
-    # pour le les donne d'entrainement
+    # --Training data
     vectorize_Train = CountVectorizer(max_features=max_feature)
-    temp_train = vectorize_Train.fit_transform(x_train['Text_clain']).toarray()
-    temp_val = vectorize_Train.transform(x_val['Text_clain']).toarray()
-
-    # pour le les donne de Teste
+    temp_train = vectorize_Train.fit_transform(trainset['Text_clain']).toarray()
+    #temp_target = vectorize_Train.transform(traintarget['Text_clain']).toarray()
+    # --Testing data
     vectorize_Test = CountVectorizer(max_features=max_feature)
-    temp_test = vectorize_Test.fit_transform(x_test['Text_clain']).toarray()
+    temp_test = vectorize_Test.fit_transform(testset['Text_clain']).toarray()
 
-    # tfidf : utiliser pour determiner à quel point un mot est important pour un texte dans un groupe de texte.
+    ## tfidf : utiliser pour determiner à quel point un mot est important pour un texte dans un groupe de texte.
     # il est calculé en multipliant la fréquence d'un mot et la fréquence inverse du document
     # (la fréquence d'un mot, calculée par log (nombre de texte / nombre de texte contenant le mot)) du mot dans un groupe de texte.
-
-    # pour le les donne d'entrainement
+    #-- pour le les donne d'entrainement
     tf_train = TfidfTransformer()
-
     temp_train = tf_train.fit_transform(temp_train)
-    temp_val = tf_train.transform(temp_val)
+    #temp_target = tf_train.transform(temp_target)
 
-    # pour le les donne de Test
+    #-- pour le les donne de Test
     tf_test = TfidfTransformer()
     temp_test = tf_test.fit_transform(temp_test)
 
-    # merging temp datafram avec le dataframe original
+    ## merging temp datafram avec le dataframe original
+    temp_train = pd.DataFrame(temp_train.toarray(), index=trainset.index)
+    trainset = pd.concat([trainset, temp_train], axis=1, sort=False)
+    #temp_target = pd.DataFrame(temp_target.toarray(), index=traintarget.index)
+    #traintarget = pd.concat([traintarget, temp_target], axis=1, sort=False)
 
-    # pour les donne d'entrainement
-    temp_train = pd.DataFrame(temp_train.toarray(), index=x_train.index)
-    temp_val = pd.DataFrame(temp_val.toarray(), index=x_val.index)
-    x_train = pd.concat([x_train, temp_train], axis=1, sort=False)
-    x_val = pd.concat([x_val, temp_val], axis=1, sort=False)
-
-    # pour le les donne de Test
-    temp_test = pd.DataFrame(temp_test.toarray(), index=x_test.index)
-    x_test = pd.concat([x_test, temp_test], axis=1, sort=False)
+    #-- pour le les donne de Test
+    temp_test = pd.DataFrame(temp_test.toarray(), index=testset.index)
+    testset = pd.concat([testset, temp_test], axis=1, sort=False)
 
     # supression de toutes les colonne des texte.
+    remove_extra_fields(testset)
+    remove_extra_fields(trainset)
 
-    x_train.drop(['position'], axis=1, inplace=True)
-    x_train.drop(['Subject'], axis=1, inplace=True)
-    x_train.drop(['Content'], axis=1, inplace=True)
-    x_train.drop(['Text_clain'], axis=1, inplace=True)
+    
+    model = RandomForestClassifier()
+    model.fit(trainset, traintarget)
+    pred = model.predict(testset)
+    print_output(pred)
 
-    x_val.drop(['position'], axis=1, inplace=True)
-    x_val.drop(['Subject'], axis=1, inplace=True)
-    x_val.drop(['Content'], axis=1, inplace=True)
-    x_val.drop(['Text_clain'], axis=1, inplace=True)
+    
 
-    x_test.drop(['position'], axis=1, inplace=True)
-    x_test.drop(['Subject'], axis=1, inplace=True)
-    x_test.drop(['Content'], axis=1, inplace=True)
-    x_test.drop(['Text_clain'], axis=1, inplace=True)
 
-    names = ["K_Nearest_Neighbors", "Decision_Tree", "Random_Forest", "Logistic_Regression", "SGD_Classifier", "Naive_Bayes", "SVM_Linear","MLPClassifier"]
-    Y_preds = {}
-
-    classifiers = [
-        KNeighborsClassifier(),
-        DecisionTreeClassifier(random_state=0),
-        RandomForestClassifier(),
-        LogisticRegression(),
-        SGDClassifier(max_iter=100),
-        MultinomialNB(),
-        SVC(kernel='linear'),
-        MLPClassifier()
-    ]
-
-    models = zip(names, classifiers)
-    score = {}
-    j=0
-
-    print("\nTrainning All Algoritheme:")
-    numm = progressbarTime("Trainning All Algoritheme")
-    for name, model in models:
-        if (j % (len(classifiers) / numm)) == 0:
-            sys.stdout.write("-"*len(classifiers))
-            sys.stdout.flush()
-
-        model.fit(x_train, y_train)
-        y_preds = model.predict(x_val)
-        Y_preds[name] = y_preds
-        score[name] = [accuracy_score(y_val, y_preds), 0, 0]
-    #     print("Precision: {:.2f}%".format(100 * precision_score(y_val, y_preds)))
-    #     print("Recall: {:.2f}%".format(100 * recall_score(y_val, y_preds)))
-    #     print("Confusion Matrix:\n")
-    #     confusion_m = confusion_matrix(y_val, y_preds)
-    #     print(confusion_m)
-
-    sys.stdout.write("]\n")
-
-    save_results(names, score)
-    printfile()
-
-    # modelHigtperformence = DecisionTreeClassifier(random_state=0)
-    # modelHigtperformence.fit(x_train, y_train)
-    # y_test = modelHigtperformence.predict(x_test)
