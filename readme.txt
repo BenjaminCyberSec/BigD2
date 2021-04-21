@@ -1,3 +1,10 @@
+------------------------------------------------------
+Code Usage
+use main.py to create the spam-mail.tt.label file
+use testing_multiple_models.py to get the tableau shown in our report
+
+------------------------------------------------------
+
 Welcome to the ADCG SPAM DATASET, which is one of the datasets for 
 the data mining competition associated with CSDMC2010 SPAM corpus.
 
