@@ -202,19 +202,19 @@ def process_msg (DataSet) :
 
 
 def save_results(names, resultat, filename='results_evaluator.txt'):
-	li = 59
-	sli = 59
+	li = 62
+	sli = 62
 
 	with open("DataSet" + os.path.sep +filename , 'w') as fichier:
 		fichier.write('\n\n' * 3 + ' ' * 8 + 'Table: Performance comparison and cross validation: Training set   \n\n+' + "-" * li + "+\n")
-		fichier.write("|ALGORITHME " + " " * 10 + "|" + " " * 5 + " evaluation  metrics " + " " * 10 + " | \n+" + "-" * li + "+")
-		fichier.write("\n|" + " " * 21 + "|" + "%12s %12s %12s" % ('accuracy |', 'precision |', 'recall |') + "\n|" + "#" * li + "|")
+		fichier.write("|ALGORITHME " + " " * 10 + "|" + " " * 5 + " evaluation  metrics " + " " * 13 + " | \n+" + "-" * li + "+")
+		fichier.write("\n|" + " " * 21 + "|" + "%13s %13s %13s" % ('accuracy |', 'Train_Error |', 'Val_Error |') + "\n|" + "#" * li + "|")
 
 		for name in names:
 			fichier.write("\n| %20s" % (name))
 
 			for value in resultat[name]:
-				fichier.write("| {:.2f} %   ".format(100 * value))
+				fichier.write("| {:.2f} %    ".format(100 * value))
 
 			fichier.write("|\n"  + "+" + "-" * sli + "+ ")
 			fichier.write("       %3s" % (' '))

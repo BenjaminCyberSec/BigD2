@@ -6,7 +6,7 @@ import os
 import nltk
 nltk.download('stopwords')
 import pandas as pd
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
@@ -72,27 +72,29 @@ if __name__ == "__main__":
     # Il s'agit de compter le nombre d'occurrences de chaque mot dans le texte donné.
 
     # pour le les donne d'entrainement
-    vectorize_Train = CountVectorizer(max_features=max_feature)
-    temp_train = vectorize_Train.fit_transform(x_train['Text_clain']).toarray()
-    temp_val = vectorize_Train.transform(x_val['Text_clain']).toarray()
+    vectorize = CountVectorizer(max_features=max_feature)
+    vectorizer = TfidfVectorizer(max_features=max_feature)
+
+    temp_train = vectorizer.fit_transform(x_train['Text_clain']).toarray()
+    temp_val = vectorizer.transform(x_val['Text_clain']).toarray()
 
     # pour le les donne de Teste
-    vectorize_Test = CountVectorizer(max_features=max_feature)
-    temp_test = vectorize_Test.fit_transform(x_test['Text_clain']).toarray()
+    # vectorize_Test=CountVectorizer(max_features=max_feature)
+    temp_test = vectorizer.fit_transform(x_test['Text_clain']).toarray()
 
     # tfidf : utiliser pour determiner à quel point un mot est important pour un texte dans un groupe de texte.
     # il est calculé en multipliant la fréquence d'un mot et la fréquence inverse du document
     # (la fréquence d'un mot, calculée par log (nombre de texte / nombre de texte contenant le mot)) du mot dans un groupe de texte.
 
     # pour le les donne d'entrainement
-    tf_train = TfidfTransformer()
+    tfidfTrans = TfidfTransformer()
 
-    temp_train = tf_train.fit_transform(temp_train)
-    temp_val = tf_train.transform(temp_val)
+    temp_train = tfidfTrans.fit_transform(temp_train)
+    temp_val = tfidfTrans.transform(temp_val)
 
     # pour le les donne de Test
-    tf_test = TfidfTransformer()
-    temp_test = tf_test.fit_transform(temp_test)
+    # tf_test=TfidfTransformer()
+    temp_test = tfidfTrans.fit_transform(temp_test)
 
     # merging temp datafram avec le dataframe original
 
@@ -128,35 +130,31 @@ if __name__ == "__main__":
 
     classifiers = [
         KNeighborsClassifier(),
-        DecisionTreeClassifier(random_state=0),
+        DecisionTreeClassifier(),
         RandomForestClassifier(),
         LogisticRegression(),
         SGDClassifier(max_iter=100),
         MultinomialNB(),
-        SVC(kernel='linear'),
-        MLPClassifier()
+        SVC(gamma=2, C=1),
+        MLPClassifier(hidden_layer_sizes=(20, 10, 5))
     ]
 
     models = zip(names, classifiers)
     score = {}
-    j=0
+    j = 0
 
     print("\nTrainning All Algoritheme:")
     numm = progressbarTime("Trainning All Algoritheme")
+
     for name, model in models:
         if (j % (len(classifiers) / numm)) == 0:
-            sys.stdout.write("-"*len(classifiers))
+            sys.stdout.write("-" * len(classifiers))
             sys.stdout.flush()
 
         model.fit(x_train, y_train)
         y_preds = model.predict(x_val)
         Y_preds[name] = y_preds
-        score[name] = [accuracy_score(y_val, y_preds), 0, 0]
-    #     print("Precision: {:.2f}%".format(100 * precision_score(y_val, y_preds)))
-    #     print("Recall: {:.2f}%".format(100 * recall_score(y_val, y_preds)))
-    #     print("Confusion Matrix:\n")
-    #     confusion_m = confusion_matrix(y_val, y_preds)
-    #     print(confusion_m)
+        score[name] = [accuracy_score(y_val, y_preds), 1 - model.score(x_train, y_train), 1 - model.score(x_val, y_val)]
 
     sys.stdout.write("]\n")
 
