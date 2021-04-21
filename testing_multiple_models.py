@@ -96,7 +96,7 @@ if __name__ == "__main__":
     # Vectorisation de comptage
     # Il s'agit de compter le nombre d'occurrences de chaque mot dans le texte donné.
     # --Training data
-    vectorize_Train = CountVectorizer(max_features=max_feature)
+    vectorize_Train = CountVectorizer()
     temp_train = vectorize_Train.fit_transform(x_train['Text_clain']).toarray()
     temp_val = vectorize_Train.transform(x_val['Text_clain']).toarray()
 
@@ -151,7 +151,7 @@ if __name__ == "__main__":
         model.fit(x_train, y_train)
         y_preds = model.predict(x_val)
         Y_preds[name] = y_preds
-        score[name] = [accuracy_score(y_val, y_preds), 0, 0]
+        score[name] = [accuracy_score(y_val, y_preds), 1 - model.score(x_train, y_train), 1 - model.score(x_val, y_val)]
     #     print("Precision: {:.2f}%".format(100 * precision_score(y_val, y_preds)))
     #     print("Recall: {:.2f}%".format(100 * recall_score(y_val, y_preds)))
     #     print("Confusion Matrix:\n")
