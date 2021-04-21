@@ -4,56 +4,26 @@
 # This function extract all the contents, ie subject and first part from the .eml file 
 # and store it in a new file with the same name in the dst dir.
 
-import csv
+#Import libraries
 import email.parser
 import os, sys, stat
 import re
 import time
-import sys
 
-#Import libraries
-import numpy as np
-import pandas as pd
-import nltk
-import string
-import numpy as np
-import pandas as pd
 import nltk
 from nltk.corpus import stopwords
-import seaborn as sns
-
-import re
-import nltk
-from nltk.corpus import stopwords
-from nltk.stem.porter import PorterStemmer
 from nltk.stem import SnowballStemmer
 nltk.download('stopwords')
-
-
-from sklearn.model_selection import train_test_split
-#importing libraries
-import pandas as pd
-import seaborn as sns
-import string
-import re
-import nltk
-from sklearn.model_selection import train_test_split
-from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score
-import warnings
-
-warnings.filterwarnings("ignore")
-nltk.download('stopwords')
 nltk.download('wordnet')
+
+import warnings
+warnings.filterwarnings("ignore")
+
 
 
 
 def ExtractSubPayload (filename):
 	''' Extract the subject and payload from the .eml file.
-	
 	'''
 	if not os.path.exists(filename): # dest path doesnot exist
 		print ("ERROR: input file does not exist:", filename)
@@ -74,7 +44,6 @@ def ExtractSubPayload (filename):
 
 def ExtractBodyFromDir ( srcdir, dstdir ):
 	'''Extract the body information from all .eml files in the srcdir and 
-	
 	save the file to the dstdir with the same name.'''
 	if not os.path.exists(dstdir): # dest path doesnot exist
 		os.makedirs(dstdir)  
@@ -92,9 +61,7 @@ def ExtractBodyFromDir ( srcdir, dstdir ):
 			dstfile.close()
 
 
-def BuldingDataSet ( srcdir, dstdir, data, emailTargets ):
-
-	i=0
+def BuildDataSet ( srcdir, dstdir, data, emailTargets ):
 	j = 0
 	keyWord = ''
 
@@ -103,23 +70,22 @@ def BuldingDataSet ( srcdir, dstdir, data, emailTargets ):
 
 	if str(data).find("TrainningSet") != -1 :
 		keyWord = 'TRAIN_'
-		with open(data, 'w') as fichier:
-			fichier.write("")
+		with open(data, 'w',  encoding='utf8') as ftrain:
+			ftrain.write("")
 	else:
 		keyWord = 'TEST_'
-		with open(data, 'w') as fichier:
-			fichier.write("")
+		with open(data, 'w',  encoding='utf8') as ftest:
+			ftest.write("")
 
-	if not os.path.exists(dstdir): # dest path doesnot exist
-		os.makedirs(dstdir)
 	files = os.listdir(srcdir)
 
-	numm=progressbarTime("Creation DataSet")
+	numm=progressbarTime(" Loading emails into a DataSet")
 	for file in files:
 		if ( j % (int(len(files)/numm)) )==0 :
 			time.sleep(0.1)
 			sys.stdout.write("-")
 			sys.stdout.flush()
+		
 
 		NumEmail = 0
 		if str(file).find("eml") != -1 & str(file).find(keyWord) != -1 :
@@ -130,18 +96,14 @@ def BuldingDataSet ( srcdir, dstdir, data, emailTargets ):
 		dstpath = os.path.join(dstdir, file)
 		src_info = os.stat(srcpath)
 		if stat.S_ISDIR(src_info.st_mode): # for subfolders, recurse
-			BuldingDataSet(srcpath, dstpath)
+			BuildDataSet(srcpath, dstpath)
 		else:  #
 			temp = open(srcpath, 'r').read()
 			fileobj = temp.splitlines()
 			sentense = ''
 			for row in fileobj:
 				if (row):
-					# try:
-					# 	# sentense = sentense.encode('latin').strip() + row.encode('latin').strip()
 					sentense = sentense + row
-					# except ValueError:
-					# 	print(str(file) +" That was no valid number "+ str(i))
 
 			position = sentense.find(';')
 			subject = sentense[0:position+1]
@@ -150,14 +112,15 @@ def BuldingDataSet ( srcdir, dstdir, data, emailTargets ):
 			if NumEmail !=0 :
 
 				if str(data).find("TrainningSet") != -1:
-					with open(data, 'a') as fichier:
-						fichier.write(str(NumEmail) + ";"+ str(subject)  + str(body) + ";" + str(emailTargets[NumEmail])+"\n" )
+					with open(data, 'a',  encoding='utf8') as ftrain:
+						ftrain.write(str(NumEmail) + ";"+ str(subject)  + str(body) + ";" + str(emailTargets[NumEmail])+"\n" )
 				else:
-					with open( data, 'a') as fichier:
-						fichier.write(str(NumEmail)+ ";" + str(subject)  + str(body)+"\n" )
+					with open( data, 'a',  encoding='utf8') as ftest:
+						ftest.write(str(NumEmail)+ ";" + str(subject)  + str(body)+"\n" )
 		j+=1
 
 	sys.stdout.write("]\n")
+	
 
 
 def GetTrainingClassification (filename):
@@ -178,10 +141,8 @@ def GetTrainingClassification (filename):
 # cette fonction permet de nettoyer les messages et traiter les messages
 # suprimer les ponctuations [! "# $% & '() * +, -. / :; <=>? @ [\] ^ _` {|} ~], et les 'stopwords'
 # converti en munuscules,.
-
-def process_msg (DataSet) :
-
-	numm=progressbarTime("Traitement DataSet")
+def Sanitize_Data (DataSet) :
+	progressbarTime("Traitement DataSet")
 	sys.stdout.write("-")
 	sys.stdout.flush()
 
@@ -194,7 +155,11 @@ def process_msg (DataSet) :
 	DataSet['Text_clain'] = DataSet['Content'].astype(str).map(lambda text: re.sub('[^a-zA-Z0-9]+', ' ',text)).apply(lambda x: (x.lower()).split())
 	# compte le nombre de mot dans un message
 	DataSet["wordNum"] = DataSet["Text_clain"].apply(len)
+	
+	#----- the slow part
 	DataSet['Text_clain']= DataSet['Text_clain'].apply(lambda text_list:' '.join(list(map(lambda word:sm.stem(word),(list(filter(lambda text:text not in set(stopwords.words('english')),text_list)))))))
+	
+	
 	# compte le nombre de Caractere  du message
 	DataSet["messageLength"] = DataSet["Text_clain"].apply(len)
 
@@ -229,4 +194,10 @@ def progressbarTime(message, toolbar_width=50) :
 	sys.stdout.flush()
 	sys.stdout.write("\b" * (toolbar_width + 1))  # retoure a la ligne apres le '['
 	return toolbar_width
+
+def remove_extra_fields(panda_set):
+    panda_set.drop(['position'], axis=1, inplace=True)
+    panda_set.drop(['Subject'], axis=1, inplace=True)
+    panda_set.drop(['Content'], axis=1, inplace=True)
+    panda_set.drop(['Text_clain'], axis=1, inplace=True)
 
